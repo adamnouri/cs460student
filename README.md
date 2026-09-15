@@ -1,1 +1,1 @@
-# cs460student
+# CS460 Project 1

@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#06080f">
+  <title>CS460: HyperCube Citadel — 3D XTK Architectural Visualization</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%2300f0ff' d='M16 2 30 9v14l-14 7L2 23V9z'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg: #06080f;
+      --panel-bg: rgba(10, 14, 26, 0.86);
+      --panel-border: rgba(0, 240, 255, 0.25);
+      --accent-cyan: #00f0ff;
+      --accent-pink: #ff2a85;
+      --accent-gold: #ffd166;
+      --accent-purple: #9d4edd;
+      --accent-green: #38b000;
+      --text-main: #f4f7fc;
+      --text-muted: #8292ab;
+      --line: #151e33;
+      --radius: 12px;
+      --glow: rgba(0, 240, 255, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      background: radial-gradient(circle at 50% 40%, #11182c 0%, #080b14 65%, #030408 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", monospace;
+      color: var(--text-main);
+    }
+
+    /* 3D Canvas Container */
+    #stage {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+      touch-action: none;
+      z-index: 1;
+    }
+
+    #stage:active { cursor: grabbing; }
+
+    #stage canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+    }
+
+    /* Top HUD Header */
+    #top-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 68px;
+      padding: 0 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 20;
+      background: linear-gradient(180deg, rgba(6, 8, 15, 0.95) 0%, rgba(6, 8, 15, 0.6) 70%, transparent 100%);
+      pointer-events: none;
+    }
+
+    #top-bar * { pointer-events: auto; }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-purple) 50%, var(--accent-pink) 100%);
+      border-radius: 8px;
+      box-shadow: 0 0 20px var(--glow);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      color: #06080f;
+      font-size: 16px;
+    }
+
+    .brand-meta h1 {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.4px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .badge-citadel {
+      font-size: 10px;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      background: rgba(0, 240, 255, 0.12);
+      color: var(--accent-cyan);
+      border: 1px solid var(--panel-border);
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+
+    .brand-meta p {
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 0.3px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-sketch-preview {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(255, 209, 102, 0.12);
+      border: 1px solid rgba(255, 209, 102, 0.35);
+      color: var(--accent-gold);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-sketch-preview:hover {
+      background: rgba(255, 209, 102, 0.22);
+      box-shadow: 0 0 12px rgba(255, 209, 102, 0.3);
+    }
+
+    .telemetry-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0, 240, 255, 0.08);
+      border: 1px solid var(--panel-border);
+      padding: 6px 14px;
+      border-radius: 30px;
+      font-size: 11px;
+      color: var(--accent-cyan);
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent-cyan);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent-cyan);
+      animation: pulseDot 2s infinite;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.35; transform: scale(0.75); }
+    }
+
+    /* Main Floating Control Deck */
+    #deck {
+      position: absolute;
+      right: 28px;
+      top: 84px;
+      bottom: 64px;
+      width: 320px;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      z-index: 20;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--line) transparent;
+    }
+
+    .deck-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .deck-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.4px;
+      color: var(--text-muted);
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .mode-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+
+    .deck-btn {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 10px;
+      color: var(--text-main);
+      font-size: 11px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .deck-btn small {
+      color: var(--text-muted);
+      font-size: 9.5px;
+    }
+
+    .deck-btn:hover {
+      background: rgba(0, 240, 255, 0.08);
+      border-color: var(--panel-border);
+    }
+
+    .deck-btn.active {
+      background: rgba(0, 240, 255, 0.16);
+      border-color: var(--accent-cyan);
+      color: #fff;
+      box-shadow: 0 0 14px rgba(0, 240, 255, 0.25);
+    }
+
+    .cam-presets {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5px;
+    }
+
+    .cam-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 6px 0;
+      font-size: 10px;
+      color: var(--text-main);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .cam-btn:hover {
+      border-color: var(--panel-border);
+      background: rgba(0, 240, 255, 0.1);
+    }
+
+    .cam-btn.active {
+      background: var(--accent-cyan);
+      color: #06080f;
+      font-weight: 700;
+      border-color: var(--accent-cyan);
+    }
+
+    .palette-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+
+    .pal-card {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 7px 9px;
+      background: rgba(255, 255, 255, 0.02);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .pal-card:hover { border-color: var(--panel-border); }
+    .pal-card.active {
+      border-color: var(--accent-cyan);
+      background: rgba(0, 240, 255, 0.1);
+    }
+
+    .pal-swatches {
+      display: flex;
+      gap: 2.5px;
+    }
+
+    .pal-swatch {
+      width: 9px;
+      height: 9px;
+      border-radius: 2px;
+    }
+
+    .pal-name {
+      font-size: 10.5px;
+      font-weight: 500;
+    }
+
+    .slider-block {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .slider-head {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+    }
+
+    .slider-head span:last-child {
+      color: var(--accent-cyan);
+      font-family: monospace;
+      font-size: 10.5px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 5px;
+      border-radius: 5px;
+      background: var(--line);
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      cursor: pointer;
+      box-shadow: 0 0 8px var(--accent-cyan);
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11.5px;
+      padding: 3px 0;
+      cursor: pointer;
+    }
+
+    .toggle-row input {
+      accent-color: var(--accent-cyan);
+      cursor: pointer;
+    }
+
+    .big-explode-btn {
+      background: linear-gradient(135deg, rgba(255, 42, 133, 0.3) 0%, rgba(0, 240, 255, 0.3) 100%);
+      border: 1px solid var(--accent-pink);
+      color: #ffffff;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.25s ease;
+      box-shadow: 0 4px 18px rgba(255, 42, 133, 0.2);
+    }
+
+    .big-explode-btn:hover {
+      box-shadow: 0 6px 24px rgba(255, 42, 133, 0.45);
+      transform: translateY(-1px);
+    }
+
+    .big-explode-btn:active {
+      transform: translateY(1px);
+    }
+
+    .bottom-aux-btns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+
+    .aux-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--line);
+      color: var(--text-muted);
+      padding: 7px;
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .aux-btn:hover {
+      color: var(--text-main);
+      border-color: var(--panel-border);
+    }
+
+    /* Footer Telemetry & Shortcuts */
+    #footer-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 48px;
+      padding: 0 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(0deg, rgba(6, 8, 15, 0.98) 0%, transparent 100%);
+      font-size: 11px;
+      color: var(--text-muted);
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    #footer-bar * { pointer-events: auto; }
+
+    .telemetry-list {
+      display: flex;
+      gap: 20px;
+    }
+
+    .telemetry-list b {
+      color: var(--accent-cyan);
+      font-family: monospace;
+    }
+
+    .key-hints {
+      display: flex;
+      gap: 12px;
+    }
+
+    .key-hints kbd {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--line);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--text-main);
+      font-family: monospace;
+      font-size: 10px;
+    }
+
+    /* Sketch Modal Dialog */
+    #sketch-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(10px);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    #sketch-modal.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-box {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius);
+      padding: 24px;
+      max-width: 820px;
+      width: 100%;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.9);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h3 {
+      font-size: 17px;
+      color: var(--text-main);
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 20px;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .close-btn:hover { color: #fff; }
+
+    .modal-body {
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .modal-body img {
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+    }
+
+    .sketch-caption {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* Loading Screen */
+    #preloader {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      z-index: 300;
+      transition: opacity 0.6s ease;
+    }
+
+    #preloader.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .citadel-loader {
+      width: 52px;
+      height: 52px;
+      position: relative;
+    }
+
+    .loader-box {
+      width: 100%;
+      height: 100%;
+      border: 3px solid transparent;
+      border-top-color: var(--accent-cyan);
+      border-bottom-color: var(--accent-pink);
+      border-radius: 50%;
+      animation: spinLoader 1s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite;
+    }
+
+    @keyframes spinLoader {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+  <script type="text/javascript" src="xtk_edge.js"></script>
+</head>
+<body>
+
+  <!-- Top Navigation & Branding -->
+  <header id="top-bar">
+    <div class="brand-group">
+      <div class="brand-icon">🏛️</div>
+      <div class="brand-meta">
+        <h1>HyperCube Citadel <span class="badge-citadel">Assignment 2</span></h1>
+        <p>Architectural 3D WebGL Cube Sculpture powered by XTK</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn-sketch-preview" id="btn-view-sketch">
+        <span>✏️ View Paper Sketch</span>
+      </button>
+      <div class="telemetry-pill">
+        <div class="live-dot"></div>
+        <span id="system-status">CITADEL ONLINE</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 3D Canvas Stage -->
+  <div id="stage"></div>
+
+  <!-- Interactive Control Deck -->
+  <aside id="deck" aria-label="Citadel HUD">
+    <div class="deck-section">
+      <div class="deck-title">
+        <span>01 / Architectural State</span>
+      </div>
+      <div class="mode-grid">
+        <button class="deck-btn active" data-mode="monument">
+          <strong>Monumental</strong>
+          <small>Solid stepped citadel</small>
+        </button>
+        <button class="deck-btn" data-mode="harmonic">
+          <strong>Harmonic Wave</strong>
+          <small>Tier-by-tier kinetic pulse</small>
+        </button>
+        <button class="deck-btn" data-mode="spiral">
+          <strong>Vortex Helix</strong>
+          <small>Oscillating tier twists</small>
+        </button>
+        <button class="deck-btn" data-mode="swarm">
+          <strong>Zero-G Orbit</strong>
+          <small>Full constellation flight</small>
+        </button>
+      </div>
+    </div>
+
+    <div class="deck-section">
+      <div class="deck-title">
+        <span>02 / Camera Vantage</span>
+      </div>
+      <div class="cam-presets">
+        <button class="cam-btn active" data-cam="iso">ISO</button>
+        <button class="cam-btn" data-cam="spire">SPIRE</button>
+        <button class="cam-btn" data-cam="ground">GROUND</button>
+        <button class="cam-btn" data-cam="top">APEX</button>
+      </div>
+    </div>
+
+    <div class="deck-section">
+      <div class="deck-title">
+        <span>03 / Chromatic Shader</span>
+      </div>
+      <div class="palette-grid">
+        <button class="pal-card active" data-palette="cyber">
+          <div class="pal-swatches">
+            <span class="pal-swatch" style="background:#00f0ff"></span>
+            <span class="pal-swatch" style="background:#ff2a85"></span>
+            <span class="pal-swatch" style="background:#ffd166"></span>
+          </div>
+          <span class="pal-name">Cyberpunk</span>
+        </button>
+        <button class="pal-card" data-palette="emerald">
+          <div class="pal-swatches">
+            <span class="pal-swatch" style="background:#38b000"></span>
+            <span class="pal-swatch" style="background:#70e000"></span>
+            <span class="pal-swatch" style="background:#004b23"></span>
+          </div>
+          <span class="pal-name">Emerald</span>
+        </button>
+        <button class="pal-card" data-palette="solar">
+          <div class="pal-swatches">
+            <span class="pal-swatch" style="background:#ff9e00"></span>
+            <span class="pal-swatch" style="background:#ff0054"></span>
+            <span class="pal-swatch" style="background:#7209b7"></span>
+          </div>
+          <span class="pal-name">Solar Core</span>
+        </button>
+        <button class="pal-card" data-palette="amethyst">
+          <div class="pal-swatches">
+            <span class="pal-swatch" style="background:#9d4edd"></span>
+            <span class="pal-swatch" style="background:#c77dff"></span>
+            <span class="pal-swatch" style="background:#e0aaff"></span>
+          </div>
+          <span class="pal-name">Amethyst</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="deck-section">
+      <div class="deck-title">
+        <span>04 / Citadel Dynamics</span>
+      </div>
+
+      <div class="slider-block">
+        <div class="slider-head">
+          <span>Kinetic Oscillation</span>
+          <span id="speed-label">1.0×</span>
+        </div>
+        <input id="slider-speed" type="range" min="0.2" max="3.0" step="0.1" value="1.0">
+      </div>
+
+      <div class="slider-block">
+        <div class="slider-head">
+          <span>Explosion Vector</span>
+          <span id="explode-label">0.0×</span>
+        </div>
+        <input id="slider-explode" type="range" min="0.0" max="2.5" step="0.05" value="0.0">
+      </div>
+
+      <label class="toggle-row">
+        <span>Spectral Color Drift</span>
+        <input id="toggle-color-drift" type="checkbox" checked>
+      </label>
+
+      <label class="toggle-row">
+        <span>Orbital Camera Sweep</span>
+        <input id="toggle-camera-orbit" type="checkbox" checked>
+      </label>
+
+      <label class="toggle-row">
+        <span>Synthesizer Audio FX</span>
+        <input id="toggle-audio" type="checkbox" checked>
+      </label>
+    </div>
+
+    <div class="deck-section" style="margin-top:auto">
+      <button class="big-explode-btn" id="btn-explode-toggle">
+        <span id="explode-text">💥 DECONSTRUCT CITADEL</span>
+      </button>
+      <div class="bottom-aux-btns">
+        <button class="aux-btn" id="btn-pause">⏸ Pause</button>
+        <button class="aux-btn" id="btn-reset-view">↺ Reset</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Telemetry Footer -->
+  <footer id="footer-bar">
+    <div class="telemetry-list">
+      <span>CUBES: <b id="stat-cubes">316</b></span>
+      <span>TIERS: <b>5 LEVELS</b></span>
+      <span>HEIGHT: <b>H=240</b></span>
+      <span>FPS: <b id="stat-fps">60</b></span>
+    </div>
+    <div class="key-hints">
+      <span><kbd>SPACE</kbd> Deconstruct</span>
+      <span><kbd>M</kbd> Mode</span>
+      <span><kbd>C</kbd> Palette</span>
+      <span><kbd>P</kbd> Pause</span>
+      <span><kbd>1-4</kbd> Cameras</span>
+    </div>
+  </footer>
+
+  <!-- Paper Sketch Modal Dialog -->
+  <div id="sketch-modal" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>✏️ Hand-Drawn Engineering Concept Sketch</h3>
+        <button class="close-btn" id="btn-close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <img src="sketch.png" alt="HyperCube Citadel Hand-Drawn Pencil Sketch on Graph Paper">
+        <p class="sketch-caption">
+          <b>Design Rationale:</b> Hand-drawn concept sketch on grid paper for Assignment 2. The visualization represents an architectural 3D temple and stepped pyramid called <i>HyperCube Citadel</i>. It details an 8×8 foundational cube grid base, secondary stepped mezzanines, nested floating data core cubes, a central spire tapering up to height H=240, and dual orbital rings of satellite cubes revolving with dynamic wave transformations.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preloader Screen -->
+  <div id="preloader">
+    <div class="citadel-loader">
+      <div class="loader-box"></div>
+    </div>
+    <h2 style="font-size:18px; letter-spacing:-0.4px;">Erecting HyperCube Citadel</h2>
+    <p style="font-size:12px; color:var(--text-muted);">Synthesizing 3D XTK WebGL scene from paper design...</p>
+  </div>
+
+  <script>
+    (function() {
+      'use strict';
+
+      // Application State
+      const STATE = {
+        mode: 'monument', // 'monument' | 'harmonic' | 'spiral' | 'swarm'
+        palette: 'cyber', // 'cyber' | 'emerald' | 'solar' | 'amethyst'
+        speed: 1.0,
+        explodeFactor: 0.0,
+        targetExplodeFactor: 0.0,
+        colorDrift: true,
+        cameraOrbit: true,
+        audioEnabled: true,
+        paused: false,
+        time: 0,
+        colorTime: 0,
+        activeCamPreset: 'iso'
+      };
+
+      const PALETTES = {
+        cyber: [
+          [0.0, 0.94, 1.0],   // Cyan
+          [1.0, 0.16, 0.52],  // Hot Pink
+          [1.0, 0.82, 0.40],  // Gold
+          [0.61, 0.30, 0.98]  // Purple
+        ],
+        emerald: [
+          [0.22, 0.69, 0.0],  // Lime green
+          [0.44, 0.88, 0.0],  // Bright green
+          [0.0, 0.29, 0.14],  // Dark jade
+          [0.0, 0.94, 0.6]    // Teal
+        ],
+        solar: [
+          [1.0, 0.62, 0.0],   // Solar orange
+          [1.0, 0.0, 0.33],   // Ruby
+          [0.45, 0.04, 0.72], // Deep violet
+          [1.0, 0.9, 0.2]     // Gold
+        ],
+        amethyst: [
+          [0.61, 0.30, 0.86], // Amethyst
+          [0.78, 0.49, 1.0],  // Lilac
+          [0.88, 0.67, 1.0],  // Lavender
+          [0.28, 0.14, 0.55]  // Deep indigo
+        ]
+      };
+
+      const CAM_PRESETS = {
+        iso: { pos: [220, 240, 280], focus: [0, 50, 0] },
+        spire: { pos: [70, 210, 110], focus: [0, 170, 0] },
+        ground: { pos: [0, 30, 290], focus: [0, 100, 0] },
+        top: { pos: [0, 390, 30], focus: [0, 60, 0] }
+      };
+
+      let r; // XTK 3D Renderer
+      const citadelCubes = [];
+      let lastTime = performance.now();
+      let frames = 0, lastFpsUpdate = lastTime;
+      let audioCtx = null;
+
+      // Sound Synthesizer via Web Audio API
+      function playTone(freq, duration, type = 'sine') {
+        if (!STATE.audioEnabled) return;
+        try {
+          if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          if (audioCtx.state === 'suspended') audioCtx.resume();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+          gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start();
+          osc.stop(audioCtx.currentTime + duration);
+        } catch(e) {}
+      }
+
+      function transformMatrix(object, x, y, z, angleX, angleY, size) {
+        const m = object.transform.matrix;
+        const cx = Math.cos(angleX), sx = Math.sin(angleX);
+        const cy = Math.cos(angleY), sy = Math.sin(angleY);
+
+        // Combined Y-axis then X-axis rotation matrix with uniform scale
+        m[0] = cy * size;          m[1] = sx * sy * size;       m[2] = -cx * sy * size;       m[3] = 0;
+        m[4] = 0;                  m[5] = cx * size;            m[6] = sx * size;             m[7] = 0;
+        m[8] = sy * size;          m[9] = -sx * cy * size;      m[10] = cx * cy * size;       m[11] = 0;
+        m[12] = x;                 m[13] = y;                   m[14] = z;                    m[15] = 1;
+
+        object.transform.modified();
+      }
+
+      function ensureXTK() {
+        if (typeof X === 'undefined' || !X.renderer3D) {
+          const s = document.createElement('script');
+          s.src = 'https://get.goXTK.com/xtk_edge.js';
+          s.onload = buildCitadel;
+          s.onerror = () => {
+            document.getElementById('system-status').textContent = 'XTK ERROR';
+          };
+          document.head.appendChild(s);
+        } else {
+          buildCitadel();
+        }
+      }
+
+      function buildCitadel() {
+        try {
+          r = new X.renderer3D();
+          r.container = 'stage';
+          r.config.PROGRESSBAR_ENABLED = false;
+          r.config.PICKING_ENABLED = false;
+          r.init();
+          r.bgColor = [6 / 255, 8 / 255, 15 / 255];
+
+          // -------------------------------------------------------------
+          // GEOMETRIC ARCHITECTURE: Constructing HyperCube Citadel
+          // -------------------------------------------------------------
+          const SPACING = 18;
+
+          // 1. Foundation Podium: 8x8 Perimeter & Corners (Tier 0: Y = 0)
+          for (let ix = -4; ix <= 3; ix++) {
+            for (let iz = -4; iz <= 3; iz++) {
+              // Create hollow courtyard layout with perimeter walls and corner bastions
+              const isPerimeter = (ix === -4 || ix === 3 || iz === -4 || iz === 3);
+              const isPillar = (Math.abs(ix) <= 1 && Math.abs(iz) <= 1);
+              if (isPerimeter || isPillar) {
+                createCitadelBlock(ix * SPACING, 0, iz * SPACING, {
+                  tier: 0,
+                  size: 10,
+                  cluster: 'foundation',
+                  explodeDir: [ix * 28, -25, iz * 28]
+                });
+              }
+            }
+          }
+
+          // 2. Mezzanine Terrace: 6x6 Stepped Deck (Tier 1: Y = 22)
+          for (let ix = -3; ix <= 2; ix++) {
+            for (let iz = -3; iz <= 2; iz++) {
+              const isPerimeter = (ix === -3 || ix === 2 || iz === -3 || iz === 2);
+              const isInner = (Math.abs(ix) <= 1 && Math.abs(iz) <= 1);
+              if (isPerimeter || isInner) {
+                createCitadelBlock(ix * SPACING, 22, iz * SPACING, {
+                  tier: 1,
+                  size: 9.5,
+                  cluster: 'mezzanine',
+                  explodeDir: [ix * 35, 10, iz * 35]
+                });
+              }
+            }
+          }
+
+          // 3. Upper Sanctum: 4x4 Platform (Tier 2: Y = 44)
+          for (let ix = -2; ix <= 1; ix++) {
+            for (let iz = -2; iz <= 1; iz++) {
+              createCitadelBlock(ix * SPACING, 44, iz * SPACING, {
+                tier: 2,
+                size: 9.0,
+                cluster: 'sanctum',
+                explodeDir: [ix * 42, 35, iz * 42]
+              });
+            }
+          }
+
+          // 4. Nested Floating Data Cores (Tier 2.5: Surrounding Sanctum)
+          const coreOffsets = [
+            [-50, 48, -50], [50, 48, -50],
+            [-50, 48, 50], [50, 48, 50]
+          ];
+          coreOffsets.forEach((pos, idx) => {
+            // Nested 2x2 cluster
+            for (let dx = -1; dx <= 1; dx += 2) {
+              for (let dz = -1; dz <= 1; dz += 2) {
+                createCitadelBlock(pos[0] + dx * 6, pos[1], pos[2] + dz * 6, {
+                  tier: 2.5,
+                  size: 6.5,
+                  cluster: 'core',
+                  coreId: idx,
+                  explodeDir: [pos[0] * 1.8, 60, pos[2] * 1.8]
+                });
+              }
+            }
+          });
+
+          // 5. Central Ascending Spire (Tier 3 to 6: Y = 66 to 220)
+          const spireLevels = [
+            { y: 66, grid: 2, size: 8.5 },
+            { y: 88, grid: 2, size: 8.0 },
+            { y: 110, grid: 1, size: 8.0 },
+            { y: 130, grid: 1, size: 7.5 },
+            { y: 150, grid: 1, size: 7.0 },
+            { y: 170, grid: 1, size: 6.5 },
+            { y: 190, grid: 1, size: 5.5 },
+            { y: 210, grid: 1, size: 4.8 },
+            { y: 228, grid: 1, size: 4.0 }  // Apex crown cube
+          ];
+
+          spireLevels.forEach((lvl, lvlIdx) => {
+            if (lvl.grid === 2) {
+              for (let sx = -0.5; sx <= 0.5; sx += 1) {
+                for (let sz = -0.5; sz <= 0.5; sz += 1) {
+                  createCitadelBlock(sx * 14, lvl.y, sz * 14, {
+                    tier: 3 + lvlIdx * 0.4,
+                    size: lvl.size,
+                    cluster: 'spire',
+                    explodeDir: [sx * 35, lvl.y * 0.8, sz * 35]
+                  });
+                }
+              }
+            } else {
+              createCitadelBlock(0, lvl.y, 0, {
+                tier: 3 + lvlIdx * 0.4,
+                size: lvl.size,
+                cluster: 'spire',
+                explodeDir: [0, lvl.y * 1.1 + 30, 0]
+              });
+            }
+          });
+
+          // 6. Orbiting Satellite Rings (Dual orbital swarms: R=110 & R=165)
+          const ring1Count = 28;
+          for (let i = 0; i < ring1Count; i++) {
+            const angle = (i / ring1Count) * Math.PI * 2;
+            createCitadelBlock(0, 0, 0, {
+              tier: 1.5,
+              size: 5.5 + (i % 3) * 1.2,
+              cluster: 'satellite',
+              ringRadius: 105,
+              ringTilt: 0.35,
+              ringSpeed: 0.65,
+              ringY: 85,
+              ringPhase: angle,
+              explodeDir: [Math.cos(angle) * 160, 100, Math.sin(angle) * 160]
+            });
+          }
+
+          const ring2Count = 34;
+          for (let j = 0; j < ring2Count; j++) {
+            const angle = (j / ring2Count) * Math.PI * 2;
+            createCitadelBlock(0, 0, 0, {
+              tier: 2.2,
+              size: 5.0 + (j % 3) * 1.5,
+              cluster: 'satellite',
+              ringRadius: 155,
+              ringTilt: -0.45,
+              ringSpeed: -0.48,
+              ringY: 135,
+              ringPhase: angle,
+              explodeDir: [Math.cos(angle) * 220, 150, Math.sin(angle) * 220]
+            });
+          }
+
+          document.getElementById('stat-cubes').textContent = citadelCubes.length;
+
+          // Camera setup
+          r.camera.position = CAM_PRESETS.iso.pos;
+          r.camera.focus = CAM_PRESETS.iso.focus;
+          r.camera.up = [0, 1, 0];
+
+          r.onShowtime = function() {
+            document.getElementById('preloader').classList.add('hidden');
+            r.camera.position = CAM_PRESETS.iso.pos;
+            r.camera.focus = CAM_PRESETS.iso.focus;
+          };
+
+          // Render loop
+          r.onRender = function() {
+            renderFrame();
+          };
+
+          r.render();
+          setupHUD();
+
+          // Fallback loader removal
+          setTimeout(() => {
+            document.getElementById('preloader').classList.add('hidden');
+          }, 600);
+
+        } catch (e) {
+          console.error(e);
+          document.getElementById('system-status').textContent = 'INITIALIZATION ERROR';
+        }
+      }
+
+      function createCitadelBlock(x, y, z, meta) {
+        const cube = new X.cube();
+        cube.lengthX = cube.lengthY = cube.lengthZ = 1;
+        cube.color = [0, 0.94, 1.0];
+        cube.pickable = false;
+
+        citadelCubes.push({
+          object: cube,
+          basePos: [x, y, z],
+          meta: meta,
+          index: citadelCubes.length
+        });
+
+        r.add(cube);
+      }
+
+      function renderFrame() {
+        const now = performance.now();
+        const dt = Math.min((now - lastTime) / 1000, 0.1);
+        lastTime = now;
+
+        // FPS meter
+        frames++;
+        if (now - lastFpsUpdate >= 500) {
+          const fps = Math.round((frames * 1000) / (now - lastFpsUpdate));
+          document.getElementById('stat-fps').textContent = fps;
+          frames = 0;
+          lastFpsUpdate = now;
+        }
+
+        if (STATE.paused) return;
+
+        STATE.time += dt * STATE.speed;
+        if (STATE.colorDrift) {
+          STATE.colorTime += dt * STATE.speed;
+        }
+
+        // Smoothly interpolate explosion factor
+        STATE.explodeFactor += (STATE.targetExplodeFactor - STATE.explodeFactor) * Math.min(dt * 3.5, 1.0);
+
+        const t = STATE.time;
+        const exp = STATE.explodeFactor;
+        const pal = PALETTES[STATE.palette];
+        const numPal = pal.length;
+
+        // Update every cube position and orientation
+        for (let i = 0; i < citadelCubes.length; i++) {
+          const item = citadelCubes[i];
+          const m = item.meta;
+          let [x, y, z] = item.basePos;
+          let angleX = 0, angleY = 0;
+          let size = m.size;
+
+          if (m.cluster === 'satellite') {
+            const curAngle = m.ringPhase + t * m.ringSpeed;
+            const rad = m.ringRadius + Math.sin(t * 2 + i) * 6;
+            x = Math.cos(curAngle) * rad;
+            y = m.ringY + Math.sin(curAngle) * Math.sin(m.ringTilt) * rad + Math.sin(t * 3 + i) * 8;
+            z = Math.sin(curAngle) * Math.cos(m.ringTilt) * rad;
+            angleY = curAngle * 2;
+            angleX = t * 1.5;
+          } else if (m.cluster === 'core') {
+            // Nested data cores rotate around their local axis
+            const coreAngle = t * 1.8 + m.coreId * (Math.PI / 2);
+            x += Math.sin(coreAngle) * 3;
+            y += Math.sin(t * 2.5 + i) * 5;
+            z += Math.cos(coreAngle) * 3;
+            angleY = coreAngle;
+          } else if (m.cluster === 'spire') {
+            // Spire subtle breathing and apex twist
+            const tierFactor = (m.tier - 3) * 0.4;
+            const twist = Math.sin(t * 1.2 + tierFactor) * (0.2 + tierFactor * 0.15);
+            if (STATE.mode === 'spiral') {
+              angleY = t * 0.8 + tierFactor * 0.9;
+            } else {
+              angleY = twist;
+            }
+            y += Math.sin(t * 2.0 + tierFactor * 2) * 4;
+          } else {
+            // Citadel Foundation & Terraces
+            if (STATE.mode === 'harmonic') {
+              const dist = Math.sqrt(x * x + z * z);
+              const wave = Math.sin(dist * 0.08 - t * 3.0) * 8;
+              y += wave;
+              size *= (1 + Math.sin(dist * 0.05 - t * 2) * 0.12);
+            } else if (STATE.mode === 'spiral') {
+              const tierRot = (m.tier % 2 === 0 ? 1 : -1) * Math.sin(t * 0.8) * 0.15;
+              angleY = tierRot;
+              y += Math.sin(t * 1.5 + m.tier) * 3;
+            } else if (STATE.mode === 'swarm') {
+              const seed = i * 2.4;
+              x += Math.sin(seed + t * 0.6) * 30;
+              y += Math.cos(seed * 1.3 + t * 0.7) * 35;
+              z += Math.sin(seed * 0.8 + t * 0.5) * 30;
+              angleX = t + seed;
+              angleY = t * 1.2;
+            }
+          }
+
+          // Apply Explosion Vector
+          if (exp > 0.001) {
+            x += m.explodeDir[0] * exp;
+            y += m.explodeDir[1] * exp;
+            z += m.explodeDir[2] * exp;
+            angleY += exp * 1.8 * (i % 2 === 0 ? 1 : -1);
+            angleX += exp * 1.2;
+          }
+
+          transformMatrix(item.object, x, y, z, angleX, angleY, size);
+
+          // Height-based & tier-based chromatic shading
+          let colorPhase;
+          if (STATE.colorDrift) {
+            colorPhase = (m.tier * 0.5 + y * 0.006 + STATE.colorTime * 0.25) % numPal;
+          } else {
+            colorPhase = (m.tier * 0.6 + y * 0.008) % numPal;
+          }
+
+          if (colorPhase < 0) colorPhase += numPal;
+          const idx0 = Math.floor(colorPhase);
+          const frac = colorPhase - idx0;
+          const col0 = pal[idx0];
+          const col1 = pal[(idx0 + 1) % numPal];
+
+          item.object.color = [
+            col0[0] + (col1[0] - col0[0]) * frac,
+            col0[1] + (col1[1] - col0[1]) * frac,
+            col0[2] + (col1[2] - col0[2]) * frac
+          ];
+        }
+
+        // Orbital camera sweep
+        if (STATE.cameraOrbit && r.camera && STATE.activeCamPreset === 'iso') {
+          const camR = 380;
+          const camAngle = t * 0.12;
+          r.camera.position = [
+            Math.sin(camAngle) * camR,
+            240 + Math.sin(t * 0.3) * 50,
+            Math.cos(camAngle) * camR
+          ];
+          r.camera.focus = [0, 70, 0];
+        }
+      }
+
+      function setupHUD() {
+        // Mode buttons
+        const modeBtns = document.querySelectorAll('.mode-grid .deck-btn');
+        modeBtns.forEach(btn => {
+          btn.addEventListener('click', () => {
+            modeBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            STATE.mode = btn.dataset.mode;
+            playTone(440, 0.15, 'triangle');
+          });
+        });
+
+        // Camera preset buttons
+        const camBtns = document.querySelectorAll('.cam-presets .cam-btn');
+        camBtns.forEach(btn => {
+          btn.addEventListener('click', () => {
+            camBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const presetKey = btn.dataset.cam;
+            STATE.activeCamPreset = presetKey;
+            const preset = CAM_PRESETS[presetKey];
+            if (preset && r && r.camera) {
+              r.camera.position = preset.pos.slice();
+              r.camera.focus = preset.focus.slice();
+            }
+            playTone(580, 0.1, 'sine');
+          });
+        });
+
+        // Palette cards
+        const palCards = document.querySelectorAll('.pal-card');
+        palCards.forEach(card => {
+          card.addEventListener('click', () => {
+            palCards.forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
+            STATE.palette = card.dataset.palette;
+            playTone(520, 0.12, 'sine');
+          });
+        });
+
+        // Kinetic Speed Slider
+        const speedSlider = document.getElementById('slider-speed');
+        speedSlider.addEventListener('input', e => {
+          STATE.speed = parseFloat(e.target.value);
+          document.getElementById('speed-label').textContent = STATE.speed.toFixed(1) + '×';
+        });
+
+        // Explode Slider
+        const explodeSlider = document.getElementById('slider-explode');
+        explodeSlider.addEventListener('input', e => {
+          STATE.targetExplodeFactor = parseFloat(e.target.value);
+          document.getElementById('explode-label').textContent = STATE.targetExplodeFactor.toFixed(2) + '×';
+        });
+
+        // Toggles
+        document.getElementById('toggle-color-drift').addEventListener('change', e => {
+          STATE.colorDrift = e.target.checked;
+        });
+
+        document.getElementById('toggle-camera-orbit').addEventListener('change', e => {
+          STATE.cameraOrbit = e.target.checked;
+        });
+
+        document.getElementById('toggle-audio').addEventListener('change', e => {
+          STATE.audioEnabled = e.target.checked;
+        });
+
+        // Deconstruct / Explode Button
+        const explodeBtn = document.getElementById('btn-explode-toggle');
+        explodeBtn.addEventListener('click', () => {
+          if (STATE.targetExplodeFactor > 0.05) {
+            STATE.targetExplodeFactor = 0.0;
+            explodeSlider.value = 0.0;
+            document.getElementById('explode-label').textContent = '0.00×';
+            document.getElementById('explode-text').textContent = '💥 DECONSTRUCT CITADEL';
+            playTone(280, 0.3, 'sawtooth');
+          } else {
+            STATE.targetExplodeFactor = 1.35;
+            explodeSlider.value = 1.35;
+            document.getElementById('explode-label').textContent = '1.35×';
+            document.getElementById('explode-text').textContent = '⚡ ASSEMBLE CITADEL';
+            playTone(660, 0.4, 'triangle');
+          }
+        });
+
+        // Pause Button
+        const pauseBtn = document.getElementById('btn-pause');
+        pauseBtn.addEventListener('click', () => {
+          STATE.paused = !STATE.paused;
+          pauseBtn.textContent = STATE.paused ? '▶ Play' : '⏸ Pause';
+          playTone(380, 0.08, 'sine');
+        });
+
+        // Reset View
+        document.getElementById('btn-reset-view').addEventListener('click', () => {
+          STATE.targetExplodeFactor = 0.0;
+          explodeSlider.value = 0.0;
+          document.getElementById('explode-label').textContent = '0.00×';
+          document.getElementById('explode-text').textContent = '💥 DECONSTRUCT CITADEL';
+          camBtns[0].click();
+        });
+
+        // Sketch Modal handlers
+        const sketchModal = document.getElementById('sketch-modal');
+        document.getElementById('btn-view-sketch').addEventListener('click', () => {
+          sketchModal.classList.add('visible');
+          playTone(490, 0.1, 'sine');
+        });
+
+        document.getElementById('btn-close-modal').addEventListener('click', () => {
+          sketchModal.classList.remove('visible');
+        });
+
+        sketchModal.addEventListener('click', e => {
+          if (e.target === sketchModal) sketchModal.classList.remove('visible');
+        });
+
+        // Global Keyboard Controls
+        window.addEventListener('keydown', e => {
+          if (e.code === 'Space') {
+            e.preventDefault();
+            explodeBtn.click();
+          } else if (e.code === 'KeyP') {
+            pauseBtn.click();
+          } else if (e.code === 'KeyM') {
+            // Cycle modes
+            const keys = ['monument', 'harmonic', 'spiral', 'swarm'];
+            const nextIdx = (keys.indexOf(STATE.mode) + 1) % keys.length;
+            modeBtns[nextIdx].click();
+          } else if (e.code === 'KeyC') {
+            // Cycle palettes
+            const pKeys = ['cyber', 'emerald', 'solar', 'amethyst'];
+            const nextP = (pKeys.indexOf(STATE.palette) + 1) % pKeys.length;
+            palCards[nextP].click();
+          } else if (e.key >= '1' && e.key <= '4') {
+            const idx = parseInt(e.key) - 1;
+            if (camBtns[idx]) camBtns[idx].click();
+          }
+        });
+      }
+
+      window.addEventListener('DOMContentLoaded', ensureXTK);
+    })();
+  </script>
+</body>
+</html>

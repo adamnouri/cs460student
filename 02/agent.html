@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090d16">
+  <title>XTK Cube Art — Kinetic Matrix Visualization</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%2300ffcc' d='M16 2 30 9v14l-14 7L2 23V9z'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg: #090d16;
+      --card: rgba(16, 23, 38, 0.88);
+      --card-border: rgba(0, 255, 204, 0.22);
+      --accent: #00ffcc;
+      --accent-glow: rgba(0, 255, 204, 0.4);
+      --pink: #ff2a85;
+      --yellow: #ffd166;
+      --blue: #3a86ff;
+      --text: #f0f4fc;
+      --muted: #8b9bb4;
+      --line: #1c2638;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Courier New", monospace;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 64px;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 10;
+      background: linear-gradient(180deg, rgba(9, 13, 22, 0.95) 0%, rgba(9, 13, 22, 0.6) 75%, transparent 100%);
+      pointer-events: none;
+    }
+
+    header * { pointer-events: auto; }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-cube {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--pink) 100%);
+      border-radius: 6px;
+      box-shadow: 0 0 16px var(--accent-glow);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      color: #090d16;
+      font-size: 15px;
+    }
+
+    .brand-text h1 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      background: rgba(0, 255, 204, 0.12);
+      color: var(--accent);
+      border: 1px solid var(--card-border);
+      padding: 2px 7px;
+      border-radius: 20px;
+    }
+
+    .brand-text p {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--accent);
+      background: rgba(0, 255, 204, 0.08);
+      border: 1px solid var(--card-border);
+      padding: 6px 14px;
+      border-radius: 30px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      background: var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    #stage {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    #stage:active { cursor: grabbing; }
+
+    #stage canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+    }
+
+    /* Control Panel Drawer */
+    #panel {
+      position: absolute;
+      right: 24px;
+      top: 80px;
+      bottom: 80px;
+      width: 310px;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      z-index: 10;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--line) transparent;
+    }
+
+    .panel-section {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--muted);
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .grid-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .mode-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--text);
+      font-size: 12px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .mode-btn small {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .mode-btn:hover {
+      background: rgba(0, 255, 204, 0.08);
+      border-color: var(--card-border);
+    }
+
+    .mode-btn.active {
+      background: rgba(0, 255, 204, 0.15);
+      border-color: var(--accent);
+      color: #ffffff;
+      box-shadow: 0 0 12px rgba(0, 255, 204, 0.2);
+    }
+
+    .palette-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .palette-btn {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      background: rgba(255, 255, 255, 0.03);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .palette-btn:hover {
+      border-color: var(--card-border);
+    }
+
+    .palette-btn.active {
+      border-color: var(--accent);
+      background: rgba(0, 255, 204, 0.1);
+    }
+
+    .palette-swatches {
+      display: flex;
+      gap: 3px;
+    }
+
+    .swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+
+    .palette-name {
+      font-size: 11px;
+      color: var(--text);
+    }
+
+    .control-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text);
+    }
+
+    .control-label span:last-child {
+      color: var(--accent);
+      font-family: monospace;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 5px;
+      border-radius: 5px;
+      background: var(--line);
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      padding: 4px 0;
+      cursor: pointer;
+    }
+
+    .checkbox-row input {
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .btn-action {
+      background: linear-gradient(135deg, rgba(0, 255, 204, 0.25) 0%, rgba(255, 42, 133, 0.25) 100%);
+      border: 1px solid var(--accent);
+      color: #fff;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-action:hover {
+      box-shadow: 0 0 16px var(--accent-glow);
+      transform: translateY(-1px);
+    }
+
+    .btn-action:active {
+      transform: translateY(1px);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-secondary:hover {
+      color: var(--text);
+      border-color: var(--card-border);
+    }
+
+    /* Footer Stats & Info */
+    footer {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 48px;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(0deg, rgba(9, 13, 22, 0.95) 0%, transparent 100%);
+      font-size: 11px;
+      color: var(--muted);
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    footer * { pointer-events: auto; }
+
+    .stats {
+      display: flex;
+      gap: 18px;
+    }
+
+    .stats b {
+      color: var(--accent);
+      font-family: monospace;
+    }
+
+    .shortcuts {
+      display: flex;
+      gap: 12px;
+    }
+
+    .shortcuts kbd {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid var(--line);
+      padding: 1px 5px;
+      border-radius: 3px;
+      color: var(--text);
+      font-family: monospace;
+      font-size: 10px;
+    }
+
+    /* Loading Overlay */
+    #loader {
+      position: absolute;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      z-index: 100;
+      transition: opacity 0.5s ease;
+    }
+
+    #loader.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid rgba(0, 255, 204, 0.15);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    #loader h2 {
+      font-size: 18px;
+      color: var(--text);
+      letter-spacing: -0.5px;
+    }
+
+    #loader p {
+      font-size: 12px;
+      color: var(--muted);
+    }
+  </style>
+  <script type="text/javascript" src="xtk_edge.js"></script>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-cube">X</div>
+      <div class="brand-text">
+        <h1>XTK Cube Art <span class="badge">agent.html</span></h1>
+        <p>Generative 3D kinetic cubes with WebGL</p>
+      </div>
+    </div>
+    <div class="status-badge">
+      <div class="status-dot"></div>
+      <span id="status-text">INITIALIZING XTK...</span>
+    </div>
+  </header>
+
+  <div id="stage"></div>
+
+  <div id="panel">
+    <div class="panel-section">
+      <div class="section-title">
+        <span>01 / Formation Mode</span>
+      </div>
+      <div class="grid-buttons">
+        <button class="mode-btn active" data-mode="0">
+          <strong>Lattice Wave</strong>
+          <small>3D kinetic cube matrix</small>
+        </button>
+        <button class="mode-btn" data-mode="1">
+          <strong>Cosmic Orbit</strong>
+          <small>Planetary rings</small>
+        </button>
+        <button class="mode-btn" data-mode="2">
+          <strong>Double Helix</strong>
+          <small>Intertwined spiral</small>
+        </button>
+        <button class="mode-btn" data-mode="3">
+          <strong>Quantum Swarm</strong>
+          <small>Chaotic flying cubes</small>
+        </button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-title">
+        <span>02 / Color Palette</span>
+      </div>
+      <div class="palette-list">
+        <button class="palette-btn active" data-palette="0">
+          <div class="palette-swatches">
+            <span class="swatch" style="background:#00ffcc"></span>
+            <span class="swatch" style="background:#ff2a85"></span>
+            <span class="swatch" style="background:#ffd166"></span>
+          </div>
+          <span class="palette-name">Cyberpunk</span>
+        </button>
+        <button class="palette-btn" data-palette="1">
+          <div class="palette-swatches">
+            <span class="swatch" style="background:#ff7b00"></span>
+            <span class="swatch" style="background:#ff0055"></span>
+            <span class="swatch" style="background:#7b2cbf"></span>
+          </div>
+          <span class="palette-name">Sunset</span>
+        </button>
+        <button class="palette-btn" data-palette="2">
+          <div class="palette-swatches">
+            <span class="swatch" style="background:#48cae4"></span>
+            <span class="swatch" style="background:#0077b6"></span>
+            <span class="swatch" style="background:#caf0f8"></span>
+          </div>
+          <span class="palette-name">Glacier</span>
+        </button>
+        <button class="palette-btn" data-palette="3">
+          <div class="palette-swatches">
+            <span class="swatch" style="background:#38b000"></span>
+            <span class="swatch" style="background:#70e000"></span>
+            <span class="swatch" style="background:#004b23"></span>
+          </div>
+          <span class="palette-name">Matrix</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-title">
+        <span>03 / Dynamics</span>
+      </div>
+
+      <div class="control-row">
+        <div class="control-label">
+          <span>Animation Speed</span>
+          <span id="speed-val">1.0×</span>
+        </div>
+        <input id="speed-slider" type="range" min="0.2" max="3.0" step="0.1" value="1.0">
+      </div>
+
+      <div class="control-row">
+        <div class="control-label">
+          <span>Wave Spread</span>
+          <span id="spread-val">1.0×</span>
+        </div>
+        <input id="spread-slider" type="range" min="0.5" max="2.0" step="0.1" value="1.0">
+      </div>
+
+      <label class="checkbox-row">
+        <span>Dynamic Color Drift</span>
+        <input id="color-drift" type="checkbox" checked>
+      </label>
+
+      <label class="checkbox-row">
+        <span>Auto Camera Orbit</span>
+        <input id="auto-rotate" type="checkbox" checked>
+      </label>
+    </div>
+
+    <div class="panel-section" style="margin-top:auto">
+      <button class="btn-action" id="scatter-btn">
+        <span>💥 Scatter / Flying Burst</span>
+      </button>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
+        <button class="btn-secondary" id="pause-btn">⏸ Pause</button>
+        <button class="btn-secondary" id="reset-cam-btn">↺ Reset View</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="stats">
+      <span>CUBES: <b id="cube-count">240</b></span>
+      <span>FPS: <b id="fps-val">60</b></span>
+      <span>ENGINE: <b>XTK WebGL</b></span>
+    </div>
+    <div class="shortcuts">
+      <span><kbd>SPACE</kbd> Scatter</span>
+      <span><kbd>P</kbd> Pause</span>
+      <span><kbd>1-4</kbd> Modes</span>
+      <span><kbd>R</kbd> Reset</span>
+    </div>
+  </footer>
+
+  <div id="loader">
+    <div class="spinner"></div>
+    <h2>Loading XTK Engine</h2>
+    <p>Creating 3D Cube Art Visualization...</p>
+  </div>
+
+  <script>
+    (function() {
+      const CONFIG = {
+        cubeGrid: 6, // 6x6x6 = 216 lattice cubes
+        satelliteCount: 24, // 24 flying satellite cubes (total 240 cubes)
+        cubeBaseSize: 9
+      };
+
+      const STATE = {
+        mode: 0,
+        palette: 0,
+        speed: 1.0,
+        spread: 1.0,
+        colorDrift: true,
+        autoRotate: true,
+        paused: false,
+        scattered: false,
+        time: 0,
+        colorTime: 0,
+        scatterTime: 0
+      };
+
+      const PALETTES = [
+        // Cyberpunk
+        [[0.0, 1.0, 0.8], [1.0, 0.16, 0.52], [1.0, 0.82, 0.4]],
+        // Sunset
+        [[1.0, 0.48, 0.0], [1.0, 0.0, 0.33], [0.48, 0.17, 0.75]],
+        // Glacier
+        [[0.28, 0.79, 0.89], [0.0, 0.47, 0.71], [0.79, 0.94, 0.97]],
+        // Emerald Matrix
+        [[0.22, 0.69, 0.0], [0.44, 0.88, 0.0], [0.0, 0.29, 0.14]]
+      ];
+
+      let r; // XTK renderer
+      const cubeData = [];
+      let lastFrame = performance.now();
+      let frameCount = 0;
+      let lastFpsTime = lastFrame;
+      let ready = false;
+
+      function transformMatrix(object, x, y, z, angle, tilt, size) {
+        const m = object.transform.matrix;
+        const c = Math.cos(angle), s = Math.sin(angle);
+        const ct = Math.cos(tilt), st = Math.sin(tilt);
+        m[0] = c * size;      m[1] = s * st * size;   m[2] = -s * ct * size;  m[3] = 0;
+        m[4] = 0;             m[5] = ct * size;       m[6] = st * size;       m[7] = 0;
+        m[8] = s * size;      m[9] = -c * st * size;  m[10] = c * ct * size;  m[11] = 0;
+        m[12] = x;            m[13] = y;              m[14] = z;              m[15] = 1;
+        object.transform.modified();
+      }
+
+      function ensureXTKAndStart() {
+        if (typeof X === 'undefined' || !X.renderer3D) {
+          const s = document.createElement('script');
+          s.src = 'https://get.goXTK.com/xtk_edge.js';
+          s.onload = createScene;
+          s.onerror = function() {
+            document.getElementById('status-text').textContent = 'XTK LOAD ERROR';
+            document.getElementById('loader').querySelector('p').textContent = 'Could not load XTK library.';
+          };
+          document.head.appendChild(s);
+        } else {
+          createScene();
+        }
+      }
+
+      function createScene() {
+        try {
+          r = new X.renderer3D();
+          r.container = 'stage';
+          r.config.PROGRESSBAR_ENABLED = false;
+          r.config.PICKING_ENABLED = false;
+          r.init();
+          r.bgColor = [9 / 255, 13 / 255, 22 / 255];
+
+          const N = CONFIG.cubeGrid;
+          const totalLattice = N * N * N;
+
+          // 1. Create Core Matrix Cubes
+          for (let i = 0; i < totalLattice; i++) {
+            const c = new X.cube();
+            c.lengthX = c.lengthY = c.lengthZ = 1;
+            c.color = [0.0, 1.0, 0.8];
+            c.pickable = false;
+
+            const ix = (i % N) - (N - 1) / 2;
+            const iy = (Math.floor(i / N) % N) - (N - 1) / 2;
+            const iz = Math.floor(i / (N * N)) - (N - 1) / 2;
+            const seed = i * 2.39996;
+
+            cubeData.push({
+              object: c,
+              isSatellite: false,
+              index: i,
+              baseX: ix,
+              baseY: iy,
+              baseZ: iz,
+              size: CONFIG.cubeBaseSize,
+              scatterDir: [
+                (Math.random() - 0.5) * 350,
+                (Math.random() - 0.5) * 350,
+                (Math.random() - 0.5) * 350
+              ]
+            });
+
+            r.add(c);
+          }
+
+          // 2. Create Flying Satellite Cubes
+          for (let j = 0; j < CONFIG.satelliteCount; j++) {
+            const sat = new X.cube();
+            sat.lengthX = sat.lengthY = sat.lengthZ = 1;
+            sat.color = [1.0, 0.16, 0.52];
+            sat.pickable = false;
+
+            cubeData.push({
+              object: sat,
+              isSatellite: true,
+              index: totalLattice + j,
+              orbitRadius: 95 + (j % 3) * 35,
+              orbitSpeed: 0.85 + (j % 4) * 0.35,
+              orbitAngle: (j / CONFIG.satelliteCount) * Math.PI * 2,
+              orbitTilt: (j % 5) * 0.6 - 1.2,
+              size: CONFIG.cubeBaseSize * (0.8 + Math.random() * 0.5),
+              scatterDir: [
+                (Math.random() - 0.5) * 400,
+                (Math.random() - 0.5) * 400,
+                (Math.random() - 0.5) * 400
+              ]
+            });
+
+            r.add(sat);
+          }
+
+          document.getElementById('cube-count').textContent = cubeData.length;
+
+          // Initial positions
+          updatePositions(0);
+          updateColors(0);
+
+          r.camera.position = [0, 220, 260];
+          r.camera.focus = [0, 0, 0];
+
+          r.onShowtime = function() {
+            ready = true;
+            document.getElementById('loader').classList.add('hidden');
+            document.getElementById('status-text').textContent = 'LIVE 3D SIMULATION';
+            r.camera.position = [0, 220, 260];
+            r.camera.focus = [0, 0, 0];
+          };
+
+          r.onRender = function() {
+            renderLoop();
+          };
+
+          r.render();
+          setupControls();
+
+          // Fallback loader removal
+          setTimeout(() => {
+            document.getElementById('loader').classList.add('hidden');
+            document.getElementById('status-text').textContent = 'LIVE 3D SIMULATION';
+          }, 600);
+
+        } catch (e) {
+          console.error(e);
+          document.getElementById('status-text').textContent = 'WEBGL ERROR';
+        }
+      }
+
+      function updatePositions(t) {
+        const sTime = STATE.scatterTime;
+        const spread = STATE.spread;
+
+        for (let i = 0; i < cubeData.length; i++) {
+          const item = cubeData[i];
+          let x = 0, y = 0, z = 0;
+          let rotAngle = t * 0.5 + i * 0.05;
+          let tiltAngle = t * 0.3;
+
+          if (item.isSatellite) {
+            const angle = item.orbitAngle + t * 0.7 * item.orbitSpeed;
+            const rad = item.orbitRadius * (1 + Math.sin(t * 1.5 + item.index) * 0.15);
+            x = Math.cos(angle) * rad;
+            y = Math.sin(angle) * Math.cos(item.orbitTilt) * rad + Math.sin(t * 2 + item.index) * 20;
+            z = Math.sin(angle) * Math.sin(item.orbitTilt) * rad;
+            rotAngle = angle * 2;
+          } else {
+            const ix = item.baseX;
+            const iy = item.baseY;
+            const iz = item.baseZ;
+            const idx = item.index;
+
+            if (STATE.mode === 0) {
+              // Mode 0: Lattice Wave
+              const dist = Math.sqrt(ix * ix + iy * iy + iz * iz);
+              const wave = Math.sin(dist * 1.2 - t * 2.5) * 12;
+              const spacing = (19 + Math.sin(t * 0.8) * 3) * spread;
+              x = ix * spacing;
+              y = iy * spacing + wave;
+              z = iz * spacing;
+            } else if (STATE.mode === 1) {
+              // Mode 1: Cosmic Orbit Rings
+              const ring = Math.floor(idx / 36);
+              const posInRing = idx % 36;
+              const angle = (posInRing / 36) * Math.PI * 2 + t * (0.4 + ring * 0.15);
+              const r0 = (35 + ring * 22) * spread;
+              const tilt = ring * 0.5 - 1.0;
+              x = Math.cos(angle) * r0;
+              y = Math.sin(angle) * Math.cos(tilt) * r0 + Math.sin(t * 3 + ring) * 8;
+              z = Math.sin(angle) * Math.sin(tilt) * r0;
+              rotAngle = angle;
+            } else if (STATE.mode === 2) {
+              // Mode 2: Double Helix
+              const strand = idx % 2;
+              const h = (idx / 216 - 0.5) * 200 * spread;
+              const angle = (idx / 216) * Math.PI * 8 + strand * Math.PI + t * 1.2;
+              const rad = (45 + Math.sin(t + idx * 0.05) * 10) * spread;
+              x = Math.cos(angle) * rad;
+              y = h;
+              z = Math.sin(angle) * rad;
+              rotAngle = angle;
+            } else {
+              // Mode 3: Quantum Swarm
+              const phase = idx * 2.39996;
+              const rad = (55 + Math.sin(phase * 2 + t) * 35) * spread;
+              x = Math.sin(phase + t * 0.6) * rad;
+              y = Math.cos(phase * 1.5 + t * 0.8) * (rad * 0.9);
+              z = Math.sin(phase * 0.7 + t * 1.1) * rad;
+              rotAngle = phase + t;
+            }
+          }
+
+          if (sTime > 0.001) {
+            x += item.scatterDir[0] * sTime;
+            y += item.scatterDir[1] * sTime;
+            z += item.scatterDir[2] * sTime;
+          }
+
+          transformMatrix(item.object, x, y, z, rotAngle, tiltAngle, item.size);
+        }
+      }
+
+      function updateColors(t) {
+        const pal = PALETTES[STATE.palette];
+        const num = pal.length;
+
+        for (let i = 0; i < cubeData.length; i++) {
+          const item = cubeData[i];
+          let phase;
+          if (STATE.colorDrift) {
+            phase = (item.index * 0.02 + STATE.colorTime * 0.35) % num;
+          } else {
+            phase = (item.index * 0.02) % num;
+          }
+
+          const i0 = Math.floor(phase);
+          const frac = phase - i0;
+          const c0 = pal[i0];
+          const c1 = pal[(i0 + 1) % num];
+
+          item.object.color = [
+            c0[0] + (c1[0] - c0[0]) * frac,
+            c0[1] + (c1[1] - c0[1]) * frac,
+            c0[2] + (c1[2] - c0[2]) * frac
+          ];
+        }
+      }
+
+      function renderLoop() {
+        const now = performance.now();
+        const dt = Math.min((now - lastFrame) / 1000, 0.1);
+        lastFrame = now;
+
+        frameCount++;
+        if (now - lastFpsTime >= 500) {
+          const fps = Math.round((frameCount * 1000) / (now - lastFpsTime));
+          document.getElementById('fps-val').textContent = fps;
+          frameCount = 0;
+          lastFpsTime = now;
+        }
+
+        if (STATE.paused) return;
+
+        STATE.time += dt * STATE.speed;
+        if (STATE.colorDrift) {
+          STATE.colorTime += dt * STATE.speed;
+        }
+
+        const targetScatter = STATE.scattered ? 1.0 : 0.0;
+        STATE.scatterTime += (targetScatter - STATE.scatterTime) * Math.min(dt * 4, 1.0);
+
+        updatePositions(STATE.time);
+        updateColors(STATE.time);
+
+        if (STATE.autoRotate && r.camera) {
+          const camRadius = 310;
+          const camAngle = STATE.time * 0.18;
+          r.camera.position = [
+            Math.sin(camAngle) * camRadius,
+            120 + Math.sin(STATE.time * 0.4) * 40,
+            Math.cos(camAngle) * camRadius
+          ];
+          r.camera.focus = [0, 0, 0];
+        }
+      }
+
+      function setupControls() {
+        const modeBtns = document.querySelectorAll('.mode-btn');
+        modeBtns.forEach(btn => {
+          btn.addEventListener('click', () => {
+            modeBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            STATE.mode = parseInt(btn.dataset.mode);
+          });
+        });
+
+        const palBtns = document.querySelectorAll('.palette-btn');
+        palBtns.forEach(btn => {
+          btn.addEventListener('click', () => {
+            palBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            STATE.palette = parseInt(btn.dataset.palette);
+          });
+        });
+
+        const speedSlider = document.getElementById('speed-slider');
+        speedSlider.addEventListener('input', e => {
+          STATE.speed = parseFloat(e.target.value);
+          document.getElementById('speed-val').textContent = STATE.speed.toFixed(1) + '×';
+        });
+
+        const spreadSlider = document.getElementById('spread-slider');
+        spreadSlider.addEventListener('input', e => {
+          STATE.spread = parseFloat(e.target.value);
+          document.getElementById('spread-val').textContent = STATE.spread.toFixed(1) + '×';
+        });
+
+        document.getElementById('color-drift').addEventListener('change', e => {
+          STATE.colorDrift = e.target.checked;
+        });
+
+        document.getElementById('auto-rotate').addEventListener('change', e => {
+          STATE.autoRotate = e.target.checked;
+        });
+
+        const scatterBtn = document.getElementById('scatter-btn');
+        scatterBtn.addEventListener('click', () => {
+          STATE.scattered = !STATE.scattered;
+          scatterBtn.querySelector('span').textContent = STATE.scattered ? '⚡ Reassemble Matrix' : '💥 Scatter / Flying Burst';
+        });
+
+        const pauseBtn = document.getElementById('pause-btn');
+        pauseBtn.addEventListener('click', () => {
+          STATE.paused = !STATE.paused;
+          pauseBtn.textContent = STATE.paused ? '▶ Resume' : '⏸ Pause';
+        });
+
+        document.getElementById('reset-cam-btn').addEventListener('click', () => {
+          if (r && r.camera) {
+            r.camera.position = [0, 220, 260];
+            r.camera.focus = [0, 0, 0];
+          }
+        });
+
+        window.addEventListener('keydown', e => {
+          if (e.code === 'Space') {
+            e.preventDefault();
+            scatterBtn.click();
+          } else if (e.code === 'KeyP') {
+            pauseBtn.click();
+          } else if (e.code === 'KeyR') {
+            document.getElementById('reset-cam-btn').click();
+          } else if (e.key >= '1' && e.key <= '4') {
+            const idx = parseInt(e.key) - 1;
+            if (modeBtns[idx]) modeBtns[idx].click();
+          }
+        });
+      }
+
+      window.addEventListener('DOMContentLoaded', ensureXTKAndStart);
+    })();
+  </script>
+</body>
+</html>

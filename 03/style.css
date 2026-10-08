@@ -1,0 +1,30 @@
+:root { color-scheme: dark; font-family: 'Helvetica Neue', Arial, sans-serif; color: #f6f0f5; background: #100f17; }
+* { box-sizing: border-box; }
+body { margin: 0; overflow: hidden; }
+#stage { position: fixed; inset: 0; }
+canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+header, aside, footer { position: fixed; z-index: 1; }
+header { top: 36px; left: 40px; pointer-events: none; }
+.eyebrow { font-size: 10px; font-weight: 650; letter-spacing: .2em; color: #b7a8ba; }
+h1 { font-size: clamp(38px, 5vw, 70px); letter-spacing: -.07em; line-height: 1; margin: 16px 0 12px; font-weight: 500; }
+h1 span { color: #ff69b4; }
+header p { color: #b7a8ba; font-size: 13px; }
+aside { bottom: 66px; left: 40px; width: 310px; padding: 20px; background: #17141edc; border: 1px solid #ffffff16; border-radius: 16px; backdrop-filter: blur(16px); }
+aside p { font-size: 12px; line-height: 1.8; }
+.muted, #stats { color: #a99eaf; }
+kbd { font: inherit; font-size: 10px; padding: 3px 5px; border: 1px solid #ffffff30; border-radius: 4px; }
+.actions { display: flex; gap: 8px; margin: 10px 0; }
+button { cursor: pointer; padding: 10px 12px; color: inherit; border: 1px solid #ffffff22; border-radius: 8px; background: #ffffff06; font: inherit; font-size: 12px; }
+button:hover { background: #ffffff14; }
+button:focus-visible { outline: 2px solid #7cfc00; outline-offset: 3px; }
+button[aria-pressed="true"] { border-color: #ff69b4; background: #ff69b422; }
+.actions button { flex: 1; }
+.secondary button { padding: 9px 6px; font-size: 10px; }
+#capture { width: 100%; }
+#stats { font-size: 10px; margin-bottom: 0; }
+#status { color: #d8c9dd; font-size: 11px; margin-bottom: 0; }
+footer { bottom: 24px; left: 40px; right: 40px; font-size: 9px; letter-spacing: .14em; color: #b7a8ba; pointer-events: none; }
+.dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; }
+.pink { background: #ff69b4; }.green { background: #7cfc00; margin-left: 20px; }
+.footer-right { float: right; }
+@media (max-width: 600px) { header { top: 22px; left: 20px; } aside { left: 20px; bottom: 45px; width: 270px; padding: 14px; } footer { left: 20px; right: 20px; bottom: 18px; } .footer-right { display: none; } }

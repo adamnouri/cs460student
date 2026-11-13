@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CS460 - XTK + Tweakpane</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0b0e14;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    #badge {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      color: #e6edf3;
+      background: rgba(13, 17, 23, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      backdrop-filter: blur(8px);
+      z-index: 10;
+      pointer-events: none;
+    }
+    #badge strong {
+      color: #38bdf8;
+    }
+    #nav {
+      position: absolute;
+      bottom: 14px;
+      left: 14px;
+      z-index: 10;
+    }
+    #nav a {
+      display: inline-block;
+      color: #94a3b8;
+      text-decoration: none;
+      font-size: 12px;
+      background: rgba(13, 17, 23, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 6px 12px;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+    }
+    #nav a:hover {
+      color: #fff;
+      border-color: #38bdf8;
+    }
+  </style>
+
+  <!-- Load XTK -->
+  <script type="text/javascript" src="https://get.goXTK.com/xtk_edge.js"></script>
+</head>
+<body>
+
+  <div id="badge">
+    <strong>CS460</strong> · XTK Implementation + Tweakpane
+  </div>
+
+  <div id="nav">
+    <a href="three.html">Switch to Three.js Implementation →</a>
+  </div>
+
+  <script type="module">
+    import { Pane } from 'https://cdn.jsdelivr.net/npm/tweakpane@4.0.5/dist/tweakpane.min.js';
+
+    window.onload = function() {
+      // 1. Initialize XTK 3D Renderer (takes full body by default)
+      const r = new X.renderer3D();
+      r.init();
+
+      // 2. Create primary XTK 3D Object
+      const cube = new X.cube();
+      cube.color = [0.22, 0.74, 0.35]; // Normalized [0..1]
+      cube.opacity = 1.0;
+      r.add(cube);
+
+      // Camera position
+      r.camera.position = [0, 0, 100];
+      r.render();
+
+      // 3. Helper: Convert #rrggbb hex to [r, g, b] float array in [0..1]
+      function hexToNormalizedRgb(hex) {
+        const clean = hex.replace('#', '');
+        return [
+          parseInt(clean.substring(0, 2), 16) / 255,
+          parseInt(clean.substring(2, 4), 16) / 255,
+          parseInt(clean.substring(4, 6), 16) / 255
+        ];
+      }
+
+      // 4. Initialize Tweakpane
+      const pane = new Pane({
+        title: 'XTK Scene Controls'
+      });
+
+      const PARAMS = {
+        color: '#38bd59',
+        opacity: 1.0,
+        visible: true,
+        rotateX: 0,
+        rotateY: 0,
+        rotateZ: 0,
+        scale: 1.0,
+      };
+
+      // --- Appearance Folder ---
+      const fAppear = pane.addFolder({ title: 'Appearance' });
+
+      fAppear.addBinding(PARAMS, 'color', { label: 'Color' }).on('change', (ev) => {
+        cube.color = hexToNormalizedRgb(ev.value);
+        r.render();
+      });
+
+      fAppear.addBinding(PARAMS, 'opacity', { min: 0.05, max: 1.0, step: 0.05, label: 'Opacity' }).on('change', (ev) => {
+        cube.opacity = ev.value;
+        r.render();
+      });
+
+      fAppear.addBinding(PARAMS, 'visible', { label: 'Visible' }).on('change', (ev) => {
+        cube.visible = ev.value;
+        r.render();
+      });
+
+      // --- Transformations Folder ---
+      const fTransform = pane.addFolder({ title: 'Transformations' });
+
+      let lastX = 0, lastY = 0, lastZ = 0;
+
+      fTransform.addBinding(PARAMS, 'rotateX', { min: 0, max: 360, step: 1, label: 'Rotate X' })
+        .on('change', (ev) => {
+          cube.transform.rotateX(ev.value - lastX);
+          lastX = ev.value;
+          r.render();
+        });
+
+      fTransform.addBinding(PARAMS, 'rotateY', { min: 0, max: 360, step: 1, label: 'Rotate Y' })
+        .on('change', (ev) => {
+          cube.transform.rotateY(ev.value - lastY);
+          lastY = ev.value;
+          r.render();
+        });
+
+      fTransform.addBinding(PARAMS, 'rotateZ', { min: 0, max: 360, step: 1, label: 'Rotate Z' })
+        .on('change', (ev) => {
+          cube.transform.rotateZ(ev.value - lastZ);
+          lastZ = ev.value;
+          r.render();
+        });
+
+      // Incremental nudge buttons
+      const fNudge = fTransform.addFolder({ title: 'Quick Nudge' });
+      fNudge.addButton({ title: '+15° X' }).on('click', () => {
+        cube.transform.rotateX(15);
+        r.render();
+      });
+      fNudge.addButton({ title: '+15° Y' }).on('click', () => {
+        cube.transform.rotateY(15);
+        r.render();
+      });
+      fNudge.addButton({ title: '+15° Z' }).on('click', () => {
+        cube.transform.rotateZ(15);
+        r.render();
+      });
+
+      // Reset Matrix
+      fTransform.addButton({ title: 'Reset Transforms' }).on('click', () => {
+        cube.transform.matrix = new Float32Array([
+          1, 0, 0, 0,
+          0, 1, 0, 0,
+          0, 0, 1, 0,
+          0, 0, 0, 1
+        ]);
+        PARAMS.rotateX = 0;
+        PARAMS.rotateY = 0;
+        PARAMS.rotateZ = 0;
+        lastX = 0; lastY = 0; lastZ = 0;
+        pane.refresh();
+        r.render();
+      });
+
+      // --- Camera Folder ---
+      const fCamera = pane.addFolder({ title: 'Camera' });
+      fCamera.addButton({ title: 'Reset View' }).on('click', () => {
+        r.camera.position = [0, 0, 100];
+        r.camera.up = [0, 1, 0];
+        r.render();
+      });
+
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CS460 · Assignment 05</title>
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --card-bg: rgba(17, 24, 39, 0.85);
+      --border: rgba(255, 255, 255, 0.1);
+      --accent-three: #f43f5e;
+      --accent-xtk: #38bdf8;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation Bar */
+    header {
+      height: 54px;
+      background: rgba(13, 17, 23, 0.95);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .brand .tag {
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn:hover {
+      color: #fff;
+    }
+
+    .tab-btn.active-three {
+      background: var(--accent-three);
+      color: #fff;
+      box-shadow: 0 0 12px rgba(244, 63, 94, 0.4);
+    }
+
+    .tab-btn.active-xtk {
+      background: var(--accent-xtk);
+      color: #0b0e14;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+    }
+
+    .tab-btn.active-split {
+      background: #8b5cf6;
+      color: #fff;
+      box-shadow: 0 0 12px rgba(139, 92, 246, 0.4);
+    }
+
+    .links {
+      display: flex;
+      gap: 8px;
+    }
+
+    .links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 12px;
+      padding: 5px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      transition: all 0.2s;
+    }
+
+    .links a:hover {
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Main Viewport Stage */
+    #stage {
+      flex: 1;
+      width: 100%;
+      height: calc(100% - 54px);
+      position: relative;
+      display: flex;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    .split-pane {
+      height: 100%;
+      position: relative;
+    }
+
+    #pane-left {
+      width: 50%;
+      border-right: 1px solid var(--border);
+    }
+
+    #pane-right {
+      width: 50%;
+    }
+
+    .single-mode #pane-left {
+      width: 100%;
+      border-right: none;
+    }
+    .single-mode #pane-right {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <span class="tag">CS460 / 05</span>
+      <span>Three.js & XTK with Tweakpane</span>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active-three" id="btn-three" onclick="setMode('three')">Three.js</button>
+      <button class="tab-btn" id="btn-xtk" onclick="setMode('xtk')">XTK</button>
+      <button class="tab-btn" id="btn-split" onclick="setMode('split')">Side-by-Side</button>
+    </div>
+
+    <div class="links">
+      <a href="three.html" target="_blank" title="Open Three.js standalone in new tab">↗ Three.js Solo</a>
+      <a href="xtk.html" target="_blank" title="Open XTK standalone in new tab">↗ XTK Solo</a>
+    </div>
+  </header>
+
+  <main id="stage" class="single-mode">
+    <div id="pane-left" class="split-pane">
+      <iframe id="frame-left" src="three.html"></iframe>
+    </div>
+    <div id="pane-right" class="split-pane" style="display: none;">
+      <iframe id="frame-right" src="xtk.html"></iframe>
+    </div>
+  </main>
+
+  <script>
+    const stage = document.getElementById('stage');
+    const frameLeft = document.getElementById('frame-left');
+    const frameRight = document.getElementById('frame-right');
+    const paneRight = document.getElementById('pane-right');
+
+    const btnThree = document.getElementById('btn-three');
+    const btnXtk = document.getElementById('btn-xtk');
+    const btnSplit = document.getElementById('btn-split');
+
+    function clearTabs() {
+      btnThree.className = 'tab-btn';
+      btnXtk.className = 'tab-btn';
+      btnSplit.className = 'tab-btn';
+    }
+
+    function setMode(mode) {
+      clearTabs();
+
+      if (mode === 'three') {
+        stage.className = 'single-mode';
+        paneRight.style.display = 'none';
+        frameLeft.src = 'three.html';
+        btnThree.className = 'tab-btn active-three';
+      } else if (mode === 'xtk') {
+        stage.className = 'single-mode';
+        paneRight.style.display = 'none';
+        frameLeft.src = 'xtk.html';
+        btnXtk.className = 'tab-btn active-xtk';
+      } else if (mode === 'split') {
+        stage.className = '';
+        paneRight.style.display = 'block';
+        frameLeft.src = 'three.html';
+        frameRight.src = 'xtk.html';
+        btnSplit.className = 'tab-btn active-split';
+      }
+    }
+  </script>
+</body>
+</html>
+
